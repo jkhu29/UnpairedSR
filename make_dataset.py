@@ -36,7 +36,7 @@ def norm(file_path, maximum: int = 255, minimum: int = 0):
     return data
 
 
-def make_data(data_path, cnt=0, split="train", size_image=64, kind="lr"):
+def make_data(data_path, cnt=0, split="train", size_image=96, kind="lr"):
     writer = tfrecord.TFRecordWriter("{}_".format(split) + kind + ".tfrecord")
     for file_name in os.listdir(data_path):
         file_path = clip(os.path.join(data_path, file_name))
@@ -58,12 +58,10 @@ def make_data(data_path, cnt=0, split="train", size_image=64, kind="lr"):
     return cnt
 
 
-size_image = 32
-
 for split in ["train", "valid"]:
     lr_path = "dataset/low/{}".format(split)
     hr_path = lr_path.replace("low", "high")
-    lr_cnt = make_data(data_path=lr_path, split=split, size_image=32)
+    lr_cnt = make_data(data_path=lr_path, split=split, size_image=24)
     hr_cnt = make_data(data_path=hr_path, split=split, kind="hr")
     cnt = min(lr_cnt, hr_cnt)
     description = {
@@ -75,10 +73,17 @@ for split in ["train", "valid"]:
     hr_loader = tfrecord.tfrecord_loader("{}_hr.tfrecord".format(split), None, description)
     for record in lr_loader:
         lr_data = record["image"]
-        hr_data = next(iter(hr_loader))["image"]
+        hr_data = next(hr_loader)["image"]
+
+        cv2.imshow("lr", lr_data)
+        cv2.imshow("hr", hr_data)
+        cv2.waitKey()
+        cv2.destroyAllWindows()
+
         writer.write({
             "lr": (lr_data.tobytes(), "byte"),
             "hr": (hr_data.tobytes(), "byte"),
-            "size": (size_image, "int"),
+            "size": (24, "int"),
         })
+        break
     writer.close()

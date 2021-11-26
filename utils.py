@@ -42,17 +42,17 @@ def _ssim(img1, img2, window, window_size, channel):
 
 
 def calc_ssim(img1, img2, window_size=11):
-   """calculate SSIM"""
-   (_, channel, _, _) = img1.size()
-   window = create_window(window_size, channel)
+    """calculate SSIM"""
+    (_, channel, _, _) = img1.size()
+    window = create_window(window_size, channel)
 
-   if img1.is_cuda:
-       window = window.cuda(img1.get_device())
-   window = window.type_as(img1)
+    if img1.is_cuda:
+        window = window.cuda(img1.get_device())
+    window = window.type_as(img1)
 
-   ssim_per_channel, _ = _ssim(img1, img2, window, window_size, channel)
+    ssim_per_channel, _ = _ssim(img1, img2, window, window_size, channel)
 
-   return ssim_per_channel.mean()
+    return ssim_per_channel.mean()
 
 
 def calc_msssim(img1, img2, window_size=11, weights=None):

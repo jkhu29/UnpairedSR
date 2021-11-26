@@ -48,7 +48,7 @@ valid_dataset = TFRecordDataset("valid.tfrecord", None, description)
 valid_dataloader = dataloader.DataLoader(dataset=valid_dataset, batch_size=opt.batch_size, drop_last=True)
 
 # models init
-model_g_x2y = models.make_cleaning_net(scale=scale).to(device)
+model_g_x2y = models.make_cleaning_net().to(device)
 model_g_y2x = models.TransferNet().to(device)
 model_sr = models.make_sr_net(scale=scale).to(device)
 model_d_x = models.NLayerDiscriminator(1, norm_layer=nn.Identity).to(device)
@@ -73,7 +73,7 @@ lr_d_sr = optim.lr_scheduler.MultiStepLR(opt_d_sr, milestones=opt.lr_milestones,
 # criterion init
 geo_criterion = criterions.GeoLoss(model_g_x2y).to(device)
 gan_criterion = criterions.GANLoss("lsgan").to(device)
-l1_criterion = nn.L1Loss().to(device)
+l2_criterion = nn.MSELoss().to(device)
 
 # train model
 print("-----------------train-----------------")
@@ -148,9 +148,10 @@ for epoch in range(opt.niter):
             pred_fake_down_hr = model_d_y(fake_down_hr)
             pred_sr_hr = model_d_sr(sr_hr)
             loss_gan_x2y = gan_criterion(pred_fake_down_hr, True, False)
-            loss_idt_x2y = l1_criterion(idt_out, down_hr)
-            loss_cycle = l1_criterion(recon_down_hr, down_hr)
-            loss_geo = l1_criterion(fake_down_hr, geo_down_hr)
+
+            loss_idt_x2y = l2_criterion(idt_out, down_hr)
+            loss_cycle = l2_criterion(recon_down_hr, down_hr)
+            loss_geo = l2_criterion(fake_down_hr, geo_down_hr)
             loss_d_sr = gan_criterion(pred_sr_hr, True, False)
             loss_total_gen = loss_gan_y2x + loss_gan_x2y + \
                 opt.cyc_weight * loss_cycle + \
@@ -160,11 +161,9 @@ for epoch in range(opt.niter):
             loss_total_gen.backward()
             opt_g_x2y.step()
             opt_g_y2x.step()
-            model_g_x2y.eval()
-            model_g_y2x.eval()
 
             opt_sr.zero_grad()
-            loss_sr = l1_criterion(model_sr(recon_down_hr.detach()), hr)
+            loss_sr = l2_criterion(model_sr(recon_down_hr.detach()), hr)
             loss_sr.backward()
             opt_sr.step()
 
@@ -183,3 +182,7 @@ for epoch in range(opt.niter):
     lr_g_x2y.step()
     lr_g_y2x.step()
     lr_sr.step()
+
+    torch.save(model_sr.state_dict(), "model_sr/epoch_{}.pth".format(epoch))
+    torch.save(model_g_x2y.state_dict(), "model_x2y/epoch_{}.pth".format(epoch))
+    torch.save(model_g_y2x.state_dict(), "model_y2x/epoch_{}.pth".format(epoch))
